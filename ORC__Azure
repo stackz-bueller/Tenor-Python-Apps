@@ -1,0 +1,91 @@
+import http.client, urllib.request, urllib.parse, urllib.error, requests, json
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+from PIL import Image
+from io import BytesIO
+
+
+body = {"url": ""}
+
+headers = {
+    # Request headers
+    'Content-Type': 'application/json',
+    'Ocp-Apim-Subscription-Key': *^<<*( subKey2 )*>>^*
+}
+
+params = urllib.parse.urlencode({
+    # Request parameters
+    'language': 'unk',
+    'detectOrientation': 'true'
+})
+
+
+def grabJSON(image_url):
+	
+	global body
+	
+	body["url"] = image_url
+	
+	try:
+		conn = http.client.HTTPSConnection('eastus.api.cognitive.microsoft.com')
+		conn.request("POST", "/vision/v1.0/ocr?%s" % params, str(body) , headers)
+		response = conn.getresponse()
+		data = response.read()
+		print(type(data))
+		finish = json.loads(data)
+		print(type(finish))
+		s = json.dumps(finish, sort_keys=True, indent=2)
+		conn.close()
+		
+	except Exception as e:
+		print("[Errno {0}] {1}".format(e.errno, e.strerror))
+	
+	return finish
+	
+	
+def decodeBoxes(finish):
+	
+	line_infos = [region["lines"] for region in finish["regions"]]
+	word_infos = []
+		
+	for line in line_infos:
+		for word_metadata in line:
+			for word_info in word_metadata["words"]:
+				word_infos.append(word_info)
+				
+	return word_infos
+
+				
+def showResult(word_infos):
+		
+	plt.Figure(figsize=(5, 5))
+	image = Image.open(BytesIO(requests.get(body["url"]).content))
+	ax = plt.imshow(image, alpha=0.5)
+		
+	for word in word_infos:
+		
+		bbox = [int(num) for num in word["boundingBox"].split(',')]
+			
+		text = word["text"]
+		origin = (bbox[0], bbox[1])
+		patch = Rectangle(origin, bbox[2], bbox[3], fill=False, linewidth=2, color='y')
+			
+		ax.axes.add_patch(patch)
+		plt.text(origin[0], origin[1], text, fontsize=20, weight="bold", va="top")
+		
+	plt.axis("off")
+	plt.show()
+
+		
+def main():
+	url = "http://www.mattmahoney.net/ocr/stock_gs200q50.jpg"
+	url1 = "http://www.mattmahoney.net/ocr/numbers_gs150.jpg"
+	capt = "http://www.mattmahoney.net/ocr/captcha2.jpg"
+	data = grabJSON(url)
+	cleaned = decodeBoxes(data)
+	print(cleaned)
+	showResult(cleaned)
+	
+
+if(__name__=='__main__'):
+	main()
