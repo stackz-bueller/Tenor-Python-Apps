@@ -1,0 +1,290 @@
+import requests
+import location as loc
+import ui
+import urllib.request
+import Image
+
+baseurl = "http://api.wunderground.com/api/"
+apiKey = # Go to Weather Underground to register for an api key, copy and paste here
+features = "/forecast/geolookup/conditions/"
+query = "q/"
+tail = ".json"
+
+obs_data = ['observation_time', 'temp_f', 'feelslike_f', 'wind_mph', 'wind_dir', 'relative_humidity', 'UV', 'solarradiation', 'weather', 'pressure_mb', 'pressure_trend', 'visibility_km','nowcast', 'icon_url']
+forecastDate = ['period', 'weekday_short', 'monthname_short',  'day', 'ampm', 'pretty']
+fcastData = ['high', 'low', 'conditions', 'qpf_allday', 'snow_allday']
+
+zip = 0
+coord = []
+
+class forecast():
+	def __init__(self, date, values):
+		
+		self.Date_Pretty = date[-1]
+		self.Time = date[0]
+		self.amPM = date[1]
+		self.Time_Zone = date[2]
+		self.Month = date[3]
+		self.Day = date[4]
+		self.High = values[1]['celsius']
+		self.Low = values[2]['celsius']
+		self.Conditions = values[3]
+		self.Rain_Total = values[4]['in']
+		self.Snow_Total = values[5]['in']
+
+	def __getitem__(self, index):
+		result = self.text[index].upper()
+		return result
+	
+	def print_forecast(o):
+		if isinstance(o, str):
+			print(o)	
+		elif isinstance(o, dict):
+			print(o)	
+		elif isinstance(o, list):
+			print(o)
+		elif isinstance(o, float):
+			print(o)	
+		elif isinstance(o, int):
+			print(o)
+		elif isinstance(o, forecast):
+			print(o.to_String())
+		else:
+			print("unprintable object")
+		return ''
+			
+	def to_String(self):
+		hold = self.Date_Pretty.split()
+		newDate = hold[0] + ' ' + hold[1] + ' ' + hold[-4] + ' ' + hold[-3] + ' ' + hold[-2][:-1]
+		print('\tDate: ', newDate, '\n',
+		'\tConditions: ', self.Conditions, '\n', '\tHigh (c): ', self.High, '\n', '\tLow (c): ', self.Low, '\n', '\tRain Total (in): ', self.Rain_Total, '\n', '\tSnow Total (in): ', self.Snow_Total)
+		return ''
+		
+
+class Observation():
+	def __init__(self, values):
+		
+		self.Time = values[0][16:]
+		self.Temp = values[1]
+		self.Feels_Like = values[2]
+		self.Wind_Speed = values[3]
+		self.Wind_Dir = values[4]
+		self.Humidity = values[5]
+		self.UV = values[6]
+		self.SolRad = values[7]
+		self.Weather = values[8]
+		self.Pressure = values[9]
+		self.PressureTrend = values[10]
+		self.Visibilty = values[11]
+		self.Nowcast = values[12]
+		self.Image = values[13]
+
+	def __getitem__(self, index):
+		result = self.text[index].upper()
+		return result
+	
+	def print_obs(o):
+		if isinstance(o, str):
+			print(o)	
+		elif isinstance(o, dict):
+			print(o)	
+		elif isinstance(o, list):
+			print(o)		
+		elif isinstance(o, float):
+			print(o)		
+		elif isinstance(o, int):
+			print(o)	
+		elif isinstance(o, Observation):
+			print(o.to_String())
+		else:
+			print("unprintable object")	
+		return ''
+		
+	def to_String(self):
+		print('\n\n', '*' * 30)
+		print('Latest Weather Observation Via Current Location')
+		print('~' * 30)
+		print('\n\tTime: ', self.Time,  '\n\n', '\tWeather: ', self.Weather, '\n', '\tTemperature (f): ', self.Temp, '\n', '\tFeels Like: ', self.Feels_Like, '\n', '\tWind speed (mph): ', self.Wind_Speed, '\n', '\tWind Direction: ', self.Wind_Dir, '\n', '\tVisibility (km): ', self.Visibilty, '\n', '\tHumidity: ', self.Humidity, '\n', '\tUV: ', self.UV, '\n', '\tSolar Radiation: ', self.SolRad, '\n', '\tPressure (mb): ', self.Pressure, '\n', '\tPressure Trend: ', self.PressureTrend, '\n', '\tNowcast: ', self.Nowcast, '\n\tImage: ', self.Image)
+		return ''
+
+#Location Grabbers
+def grabloc():
+	loc.start_updates()
+	a = loc.get_location()
+	loc.stop_updates()
+	return a
+	
+def reverseGeo(b):
+	holder = loc.reverse_geocode(b)
+	return holder
+
+#URL Builders
+#Using Zip Code
+def buildUrlZipCode(zip):
+	zCodeUrl = (baseurl, apiKey, features, query, zip, tail)
+	zCodeUrl = ''.join(zCodeUrl)
+	return zCodeUrl
+
+#Using Latitude and Longitude
+def buildUrlLonLat(coord):
+	url = (baseurl, apiKey, features, query, coord, tail)
+	url = ''.join(url)
+	return url
+
+# JSON Grabber
+def accessWUjson(url):
+	json = requests.get(url).json()
+	return json
+
+# Structure Data
+def decode(obs):
+	list = []
+	for i in range(0, len(obs_data)):
+		list.append(obs['current_observation'][obs_data[i]])
+	return list
+
+# Extracts Forecast into dict
+def getForecast(obs):
+	time = obs['current_observation']['observation_time'][16:]
+	fore = obs['forecast']['simpleforecast']['forecastday']
+	
+	forecasted = storeForecast(fore)
+	hold = formatForecast(fore, forecasted)
+	fcast = formatForecastData(fore, forecasted, hold)
+	myForecast = zipForecast(hold, fcast)
+	return myForecast
+	
+# as stated
+def storeForecast(l):
+	list = []
+	for i in l:
+		list.append(i)
+	return list
+
+# as stated
+def formatForecast(path, l):
+	holder = []
+	
+	for i in range(0, len(path)):
+		list = []
+		for info in forecastDate:
+			if (info == 'period'):
+				list.append(path[i]['period'])
+			else:
+				list.append(path[i]['date'][info])		
+		holder.append(list)
+	return holder
+
+# as stated		
+def formatForecastData(path, j, k):
+	holder = []
+	
+	for i in range(0, len(j)):
+		list = []
+		list.append(k[i][-1])
+		for info in fcastData:
+			list.append(path[i][info])
+		holder.append(list)
+	return holder
+	
+# as stated	
+def zipForecast(a, b):
+	l = []
+	
+	for i in range(0, 4):
+		l.append(a[i][1])
+		print(l)
+	f = zip(l, b)
+
+	return f
+	
+# as stated	
+def storeObsData():
+	a = grabloc()
+	myLoc = reverseGeo(a)
+	print('*' * 30)
+	print('Current Location Successfully Captured')
+	print('~' * 30)
+	print('\n\nProof: ', '\n\n\t', myLoc, '\n\n')	
+	url = buildUrlZipCode(myLoc[0]['ZIP'])
+	recentObs = dict(accessWUjson(url))
+	print('*' * 30)
+	print('\tRecent Observation captured successfully')
+	print('~' * 30)
+	print('\n\nProof: ', '\n\n\t', recentObs.keys(), '\n\n\t', recentObs['current_observation'].keys())
+	print('\n\n\t', recentObs['response'], '\n' * 12)
+	return recentObs
+	
+# as stated
+def getWeatherNow():
+	ob = storeObsData()
+	c = getForecast(ob)
+	new = decode(ob)
+	now = Observation(new)
+	now.print_obs()
+	
+	holder = []
+	for i in range(1, (len(c) + 1)):
+		list = []
+		hold = c[i][0].split()
+		list.append(hold[0])
+		list.append(hold[1])
+		list.append(hold[2])
+		list.append(hold[4])
+		list.append(hold[5][:2])
+		list.append(hold[-1])
+		list.append(c[i][0])
+		holder.append(list)
+	
+	foreHolder = []
+	for j in range(0, (len(c))):
+		
+		this = forecast(holder[j], c[j + 1])
+		foreHolder.append(this)
+	
+	print('\*' * 40)
+	print('\t' * 3, 'Future Weather Forecasts')
+	print('~' * 40, '\n')
+	
+	for this in foreHolder:
+		this.print_forecast()
+	return [now, foreHolder]
+	
+
+def main():
+	items = getWeatherNow()
+	nowcast = items[0]
+	forecastList = items[1]
+	
+	URL = nowcast.Image
+	
+	v = ui.load_view('weatherUI')
+	
+	def update_page(page_img):
+		img.load_from_url(page_img)
+	
+	v['weatherTab'].text = nowcast.Weather
+	v['temp'].text = str(nowcast.Temp)
+	v['humid'].text = str(nowcast.Humidity)
+	v['windSpeed'].text = str(nowcast.Wind_Speed)
+	v['windDir'].text = str(nowcast.Wind_Dir)
+	v['vis'].text = str(nowcast.Visibilty)
+	v['pressure'].text = str(nowcast.Pressure)
+	v['pressTrend'].text = str(nowcast.PressureTrend)
+	v['uv'].text = str(nowcast.UV)
+	v['solRad'].text = str(nowcast.SolRad)
+	v['dateTab'].text = str(nowcast.Time)
+	
+	v['toniCondi'].text = str(forecastList[0].Conditions)
+	v['toniHigh'].text = 'High: ' + str(forecastList[0].High) + ' C'
+	v['toniLow'].text = 'Low: ' + str(forecastList[0].Low) + ' C'
+	v['toniRain'].text = 'Rain: ' + str(forecastList[0].Rain_Total) + ' in'
+	v['toniSno'].text = 'Snow: ' + str(forecastList[0].Snow_Total) + ' in'
+	
+	img = v['image']
+	
+	v.present('sheet')
+	update_page(URL)
+	
+if(__name__ == '__main__'):
+	main()
