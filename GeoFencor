@@ -1,0 +1,26 @@
+import location as l
+from math import cos
+
+
+def insideCircle(origin, point, rad):
+	
+	deltas = []
+	mag = 0
+	
+	deltaX = abs(point[0] - origin[0])
+	deltaY = abs(point[1] - origin[1])
+	deltas = [deltaX, deltaY]
+	
+	latLength = (1 / 360) * 24901.55
+	lonLength = cos(origin[0]) * 24901.55
+	
+	truRad = (((rad / latLength) ** 2) + ((rad / lonLength) ** 2)) ** 0.5
+	
+	mag = ((deltaX ** 2) + (deltaY ** 2)) ** 0.5
+	
+	if(mag <= truRad):
+		return True
+	else:
+		return False
+		
+
